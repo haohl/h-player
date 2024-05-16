@@ -745,8 +745,8 @@ export declare class ISOFile {
   setExtractionOptions(id: any, user: any, options: any): void;
   unsetExtractionOptions(id: any): void;
   parse(): void;
-  checkBuffer(ab: any): boolean;
-  appendBuffer(ab: any, last: any): any;
+  checkBuffer(ab: MediaArrayBuffer): boolean;
+  appendBuffer(ab: MediaArrayBuffer, last?: number): any;
   nextSeekPosition: any;
   getInfo(): {
     hasMoov: boolean;
@@ -769,7 +769,7 @@ export declare class ISOFile {
     mime: string;
   };
   processSamples(last: any): void;
-  getBox(type: any): any;
+  getBox(type: any): BoxParser.Box;
   getBoxes(type: any, returnEarly: any): any[];
   getTrackSamplesInfo(track_id: any): any;
   getTrackSample(track_id: any, number: any): any;
@@ -949,6 +949,60 @@ export namespace BoxParser {
   let DIFF_PRIMITIVE_ARRAY_PROP_NAMES: string[];
   function boxEqualFields(box_a: any, box_b: any): boolean;
   function boxEqual(box_a: any, box_b: any): boolean;
+
+  export class avcCBox extends ContainerBox {
+    constructor(size: any);
+
+    parse(stream: any): void;
+    write(stream: any): void;
+  }
+
+  export class hvcCBox extends ContainerBox {
+    constructor(size: any);
+
+    parse(stream: any): void;
+  }
+
+  export class vpcCBox extends ContainerBox {
+    constructor(size: any);
+
+    parse(stream: any): void;
+  }
+
+  export class av1CBox extends ContainerBox {
+    constructor(size: any);
+
+    parse(stream: any): void;
+  }
+
+  export class ContainerBox extends Box {
+    constructor(type: any, size: any, uuid: any);
+
+    parse(stream: any): void;
+    print(output: any): void;
+    write(stream: any): void;
+  }
+  export class Box {
+    size?: number;
+    data?: Uint8Array;
+
+    constructor(type?: string, size?: number);
+
+    add(name: string): Box;
+    addBox(box: Box): Box;
+    set(name: string, value: any): void;
+    addEntry(value: string, prop?: string): void;
+    printHeader(output: any): void;
+    write(stream: DataStream): void;
+    writeHeader(stream: DataStream, msg?: string): void;
+    computeSize(): void;
+
+    // TODO add types for these
+    parse(stream: any): void;
+    parseDataAndRewind(stream: any): void;
+    parseLanguage(stream: any): void;
+    print(output: any): void;
+  }
 }
 export declare class XMLSubtitlein4Parser {
   parseSample(sample: any): {
@@ -961,4 +1015,91 @@ export declare class Textin4Parser {
   parseSample(sample: any): string;
   parseConfig(data: any): any;
 }
-export function createFile(_keepMdatData: any, _stream: any): ISOFile;
+export declare function createFile(
+  keepMdatData?: boolean,
+  stream?: MultiBufferStream
+): ISOFile;
+
+/** below is my own declarations */
+
+export type MediaArrayBuffer = ArrayBuffer & { fileStart: number };
+
+export interface MediaInfo {
+  duration: number;
+  timescale: number;
+  fragment_duration: number;
+  isFragmented: boolean;
+  isProgressive: boolean;
+  hasIOD: boolean;
+  brands: string[];
+  created: Date;
+  modified: Date;
+  tracks: MediaTrack[];
+  mime: string;
+  audioTracks: AudioTrack[];
+  videoTracks: VideoTrack[];
+}
+
+export interface MediaTrack {
+  id: number;
+  created: Date;
+  modified: Date;
+  movie_duration: number;
+  layer: number;
+  alternate_group: number;
+  volume: number;
+  track_width: number;
+  track_height: number;
+  timescale: number;
+  duration: number;
+  bitrate: number;
+  codec: string;
+  language: string;
+  nb_samples: number;
+}
+
+export interface AudioData {
+  sample_rate: number;
+  channel_count: number;
+  sample_size: number;
+}
+
+export interface AudioTrack extends MediaTrack {
+  audio: AudioData;
+}
+
+export interface VideoData {
+  width: number;
+  height: number;
+}
+
+export interface VideoTrack extends MediaTrack {
+  video: VideoData;
+}
+
+export interface Sample {
+  number: number;
+  track_id: number;
+  timescale: number;
+  description_index: number;
+  description: {
+    avcC?: BoxParser.avcCBox; // h.264
+    hvcC?: BoxParser.hvcCBox; // hevc
+    vpcC?: BoxParser.vpcCBox; // vp9
+    av1C?: BoxParser.av1CBox; // av1
+  };
+  data: ArrayBuffer;
+  size: number;
+  alreadyRead?: number;
+  duration: number;
+  cts: number;
+  dts: number;
+  is_sync: boolean;
+  is_leading?: number;
+  depends_on?: number;
+  is_depended_on?: number;
+  has_redundancy?: number;
+  degradation_priority?: number;
+  offset?: number;
+  subsamples?: any;
+}
